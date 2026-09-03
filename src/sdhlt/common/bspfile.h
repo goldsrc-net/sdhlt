@@ -35,7 +35,8 @@
 
 #define MAX_MAP_NODES        32767
 // hard limit (negative short's are used as contents values)
-#define MAX_MAP_CLIPNODES    32767
+#define MAX_MAP_CLIPNODES_HLBSP 32767   // the v30 file format: dclipnode_t children are int16
+#define MAX_MAP_CLIPNODES    262144  // the working set; a map over the v30 ceiling is written as Xash bsp30ext (32-bit clipnodes)
 // hard limit (negative short's are used as contents values)
 
 #define MAX_MAP_LEAFS        32760
@@ -216,9 +217,33 @@ dnode_t;
 typedef struct
 {
     int             planenum;
-    short           children[2];                           // negative numbers are contents
+    int             children[2];                           // negative numbers are contents (in memory: 32-bit, see below)
 }
 dclipnode_t;
+
+// On disk a v30 clipnode has int16 children (dclipnode16_t), which caps a map at 32767 clipnodes. Xash3D's "bsp30ext"
+// keeps version 30 but follows the header with a dextrahdr_t and, when the clipnode count needs it, stores the lump
+// as dclipnode32_t (the in-memory layout above); the engine tells the two apart by the lump length. The compilers
+// work in 32-bit and convert at the file: 16-bit when the count fits, bsp30ext when it does not (goldsrc-net fork).
+typedef struct
+{
+    int             planenum;
+    short           children[2];
+}
+dclipnode16_t;
+typedef dclipnode_t dclipnode32_t;
+
+#define IDEXTRAHEADER   (('X') | ('A' << 8) | ('S' << 16) | ('H' << 24))
+#define EXTRA_VERSION   4
+#define EXTRA_LUMPS     12
+typedef struct
+{
+    int             id;                                    // IDEXTRAHEADER
+    int             version;                               // EXTRA_VERSION
+    lump_t          lumps[EXTRA_LUMPS];                    // all empty here: the extension is used for the clipnodes only
+}
+dextrahdr_t;
+extern bool     g_bsp30ext;                                // the loaded/written file carries the extra header
 
 typedef struct texinfo_s
 {
