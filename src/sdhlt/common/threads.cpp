@@ -12,6 +12,9 @@
 #include "messages.h"
 #include "log.h"
 #include "threads.h"
+#ifdef SYSTEM_POSIX
+#include <unistd.h>
+#endif
 #include "blockmem.h"
 
 #ifdef SYSTEM_POSIX
@@ -460,9 +463,10 @@ void            ThreadSetPriority(q_threadpriority type)
 
 void            ThreadSetDefault()
 {
-    if (g_numthreads == -1)
+    if (g_numthreads == -1)                                // not set manually: every processor, as on Windows
     {
-        g_numthreads = 1;
+        long processors = sysconf(_SC_NPROCESSORS_ONLN);
+        g_numthreads = (processors < 1 || processors > MAX_THREADS) ? 1 : (int)processors;
     }
 }
 

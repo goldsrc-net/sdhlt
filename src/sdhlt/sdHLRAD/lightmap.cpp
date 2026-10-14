@@ -5519,25 +5519,12 @@ void            FinalLightFace(const int facenum)
 
 	if (!strncasecmp(texname, "%", 1)) //If texture name has % flag //seedee
 	{
-		size_t texnameLength = strlen(texname);
-
-		if (texnameLength > 1)
+		// %Ntexname sets the minlight to N (0-255); %texname with no number after the % is full minlight,
+		// as the README says (it used to set nothing unless the name was the bare %)
+		if (texname[1] >= '0' && texname[1] <= '9')
 		{
-			char* minlightValue = new char[texnameLength + 1];
-			int valueIndex = 0;
-			int i = 1;
-
-			if (texname[i] >= '0' && texname[i] <= '9') //Loop until non-digit is found or we run out of space
-			{
-				while (texname[i] != '\0' && texname[i] >= '0' && texname[i] <= '9' && valueIndex < texnameLength)
-				{
-					minlightValue[valueIndex++] = texname[i++];
-				}
-				minlightValue[valueIndex] = '\0';
-				minlight = atoi(minlightValue);
-				delete[] minlightValue;
-				minlight = (minlight > 255) ? 255 : minlight;
-			}
+			minlight = atoi(texname + 1);
+			minlight = (minlight > 255) ? 255 : minlight;
 		}
 		else
 		{
