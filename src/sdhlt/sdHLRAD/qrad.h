@@ -438,7 +438,7 @@ extern patch_t* g_face_patches[MAX_MAP_FACES];
 extern entity_t* g_face_entity[MAX_MAP_FACES];
 extern vec3_t   g_face_offset[MAX_MAP_FACES];              // for models with origins
 extern eModelLightmodes g_face_lightmode[MAX_MAP_FACES];
-extern vec3_t   g_face_centroids[MAX_MAP_EDGES];
+extern vec3_t   g_face_centroids[MAX_MAP_FACES];
 extern entity_t* g_face_texlights[MAX_MAP_FACES];
 extern patch_t* g_patches; // shrinked to its real size, because 1048576 patches * 256 bytes = 256MB will be too big
 extern unsigned g_num_patches;

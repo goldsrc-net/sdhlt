@@ -34,7 +34,7 @@
 // I noticed that it hit the MAX_MAP_PLANES limit of 32k.  After deleting some brushes
 // I was able to bring the map under the limit, and all of the previous errors went away.
 
-#define MAX_MAP_NODES        32767
+#define MAX_MAP_NODES        262144 // GoldSrc 32767 (g_engine->nodes)
 // hard limit (negative short's are used as contents values)
 #define MAX_MAP_CLIPNODES_HLBSP 32767   // the v30 file format: dclipnode_t children are int16
 #define MAX_MAP_CLIPNODES    524288  // the working set; over the v30 ceiling, -xash writes Xash bsp30ext (32-bit clipnodes)
@@ -46,10 +46,10 @@
 // This problem indicates that engine's MAX_MAP_LEAFS is 8192 (for reason, see: Quake - gl_model.c - Mod_Init).
 // I don't know if visleafs > 8192 will cause Mod_DecompressVis overflow.
 
-#define MAX_MAP_VERTS        65535
-#define MAX_MAP_FACES        65535 // This ought to be 32768, otherwise faces(in world) can become invisible. --vluzacn
+#define MAX_MAP_VERTS        524288 // GoldSrc 65535 (g_engine->vertexes)
+#define MAX_MAP_FACES        262144 // GoldSrc 65535 (g_engine->faces) // This ought to be 32768, otherwise faces(in world) can become invisible. --vluzacn
 #define MAX_MAP_WORLDFACES   32768
-#define MAX_MAP_MARKSURFACES 65535
+#define MAX_MAP_MARKSURFACES 524288 // GoldSrc 65535 (g_engine->marksurfaces)
 // hard limit (data structures store them as unsigned shorts)
 
 #define MAX_MAP_TEXTURES      4096 //512 //vluzacn
@@ -204,14 +204,16 @@ typedef enum
 contents_t;
 
 // !!! if this is changed, it must be changed in asm_i386.h too !!!
+// In memory the nodes, leafs, faces, edges and marksurfaces have 32-bit numbers, as Xash's BSP2 has them; a v30 file
+// has 16-bit ones (the *16_t layouts below), and the file is written in whichever its counts fit (WriteBSPFile).
 typedef struct
 {
     int             planenum;
-    short           children[2];                           // negative numbers are -(leafs+1), not nodes
+    int             children[2];                           // negative numbers are -(leafs+1), not nodes
     short           mins[3];                               // for sphere culling
     short           maxs[3];
-    unsigned short  firstface;
-    unsigned short  numfaces;                              // counting both sides
+    int             firstface;
+    int             numfaces;                              // counting both sides
 }
 dnode_t;
 
@@ -260,20 +262,18 @@ texinfo_t;
 // counterclockwise use of the edge in a face
 typedef struct
 {
-    unsigned short  v[2];                                  // vertex numbers
+    int             v[2];                                  // vertex numbers
 }
 dedge_t;
 
 #define MAXLIGHTMAPS    4
 typedef struct
 {
-    unsigned short	planenum;
-    short           side;
-
+    int             planenum;
+    int             side;
     int             firstedge;                             // we must support > 64k edges
-    short           numedges;
-    short           texinfo;
-
+    int             numedges;
+    int             texinfo;
     // lighting info
     byte            styles[MAXLIGHTMAPS];
     int             lightofs;                              // start of [numstyles*surfsize] samples
@@ -293,16 +293,82 @@ typedef struct
 {
     int             contents;
     int             visofs;                                // -1 = no visibility info
-
     short           mins[3];                               // for frustum culling
     short           maxs[3];
-
-    unsigned short  firstmarksurface;
-    unsigned short  nummarksurfaces;
-
+    int             firstmarksurface;
+    int             nummarksurfaces;
     byte            ambient_level[NUM_AMBIENTS];
 }
 dleaf_t;
+
+// The same on disk. A v30 file (BSPVERSION) has 16-bit numbers; Xash's BSP2 (BSP2VERSION, the version word "BSP2")
+// has the in-memory 32-bit ones with float bounds, and its clipnodes are always 32-bit (dclipnode32_t).
+// The most a v30 file's 16-bit numbers name: past any, -xash writes BSP2 (WriteBSPFile)
+#define MAX_MAP_VERTS_V30        65535
+#define MAX_MAP_NODES_V30        32767
+#define MAX_MAP_LEAFS_V30        32767
+#define MAX_MAP_FACES_V30        65535
+#define MAX_MAP_MARKSURFACES_V30 65535
+#define BSP2VERSION     (('B') | ('S' << 8) | ('P' << 16) | ('2' << 24))
+typedef struct
+{
+    int             planenum;
+    short           children[2];
+    short           mins[3];
+    short           maxs[3];
+    unsigned short  firstface;
+    unsigned short  numfaces;
+}
+dnode16_t;
+typedef struct
+{
+    unsigned short  v[2];
+}
+dedge16_t;
+typedef struct
+{
+    unsigned short  planenum;
+    short           side;
+    int             firstedge;
+    short           numedges;
+    short           texinfo;
+    byte            styles[MAXLIGHTMAPS];
+    int             lightofs;
+}
+dface16_t;
+typedef struct
+{
+    int             contents;
+    int             visofs;
+    short           mins[3];
+    short           maxs[3];
+    unsigned short  firstmarksurface;
+    unsigned short  nummarksurfaces;
+    byte            ambient_level[NUM_AMBIENTS];
+}
+dleaf16_t;
+typedef struct
+{
+    int             planenum;
+    int             children[2];
+    float           mins[3];
+    float           maxs[3];
+    int             firstface;
+    int             numfaces;
+}
+dnode2_t;
+typedef struct
+{
+    int             contents;
+    int             visofs;
+    float           mins[3];
+    float           maxs[3];
+    int             firstmarksurface;
+    int             nummarksurfaces;
+    byte            ambient_level[NUM_AMBIENTS];
+}
+dleaf2_t;
+extern bool     g_bsp2;                                    // the loaded/written file is BSP2
 
 //============================================================================
 
@@ -368,7 +434,7 @@ extern dedge_t  g_dedges[MAX_MAP_EDGES];
 extern int      g_dedges_checksum;
 
 extern int      g_nummarksurfaces;
-extern unsigned short g_dmarksurfaces[MAX_MAP_MARKSURFACES];
+extern int      g_dmarksurfaces[MAX_MAP_MARKSURFACES];
 extern int      g_dmarksurfaces_checksum;
 
 extern int      g_numsurfedges;
@@ -458,6 +524,10 @@ typedef struct
     int             lightdata;                             // over it the engine warns; 0: it does not
     int             entities;                              // that the engine can hold at once
     int             entitiesdefault;                       // as many when the mod says nothing; 0: the same
+    int             vertexes;                              // past a v30 file's 16-bit numbers, Xash's BSP2
+    int             nodes;
+    int             faces;
+    int             marksurfaces;
 }
 enginelimits_t;
 extern const enginelimits_t* g_engine;

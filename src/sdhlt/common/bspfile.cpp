@@ -17,11 +17,13 @@ static const enginelimits_t s_goldsrc =
 {
     "GoldSrc", 512, 32768, 32768, MAX_MAP_CLIPNODES_HLBSP, MAX_MAP_CLIPNODES_HLBSP,
     32768, MAX_MAP_LEAFS_ENGINE, 64, 0x800000, 0, MAX_ENGINE_ENTITIES, 0,
+    65535, 32767, 65535, 65535,
 };
 static const enginelimits_t s_xash =
 {
-    "Xash3D FWGS", 2048, 131072, 65536, MAX_MAP_CLIPNODES, MAX_MAP_CLIPNODES_HLBSP,
-    65535, MAX_MAP_LEAFS, 256, 0x1000000, 0x2000000, 8192, 1200,          // 1200: its gameinfo.c's max_edicts
+    "Xash3D FWGS", 2048, 131072, 131072, MAX_MAP_CLIPNODES, MAX_MAP_CLIPNODES_HLBSP,
+    MAX_MAP_FACES, MAX_MAP_LEAFS, 256, 0x1000000, 0x2000000, 8192, 1200,  // 1200: its gameinfo.c's max_edicts
+    MAX_MAP_VERTS, MAX_MAP_NODES, MAX_MAP_FACES, MAX_MAP_MARKSURFACES,    // BSP2's, where its lump table refuses
 };
 const enginelimits_t* g_engine = &s_goldsrc;
 
@@ -80,6 +82,7 @@ int				g_iWorldExtent = 65536; // ENGINE_ENTITY_RANGE; // -worldextent // seedee
 int             g_numclipnodes;
 dclipnode_t     g_dclipnodes[MAX_MAP_CLIPNODES];
 bool            g_bsp30ext = false;
+bool            g_bsp2 = false;
 int             g_dclipnodes_checksum;
 
 int             g_numedges;
@@ -87,7 +90,7 @@ dedge_t         g_dedges[MAX_MAP_EDGES];
 int             g_dedges_checksum;
 
 int             g_nummarksurfaces;
-unsigned short  g_dmarksurfaces[MAX_MAP_MARKSURFACES];
+int             g_dmarksurfaces[MAX_MAP_MARKSURFACES];
 int             g_dmarksurfaces_checksum;
 
 int             g_numsurfedges;
@@ -296,12 +299,12 @@ static void     SwapBSPFile(const bool todisk)
     //
     for (i = 0; i < g_numfaces; i++)
     {
-        g_dfaces[i].texinfo = LittleShort(g_dfaces[i].texinfo);
-        g_dfaces[i].planenum = LittleShort(g_dfaces[i].planenum);
-        g_dfaces[i].side = LittleShort(g_dfaces[i].side);
+        g_dfaces[i].texinfo = LittleLong(g_dfaces[i].texinfo);
+        g_dfaces[i].planenum = LittleLong(g_dfaces[i].planenum);
+        g_dfaces[i].side = LittleLong(g_dfaces[i].side);
         g_dfaces[i].lightofs = LittleLong(g_dfaces[i].lightofs);
         g_dfaces[i].firstedge = LittleLong(g_dfaces[i].firstedge);
-        g_dfaces[i].numedges = LittleShort(g_dfaces[i].numedges);
+        g_dfaces[i].numedges = LittleLong(g_dfaces[i].numedges);
     }
 
     //
@@ -315,10 +318,10 @@ static void     SwapBSPFile(const bool todisk)
             g_dnodes[i].mins[j] = LittleShort(g_dnodes[i].mins[j]);
             g_dnodes[i].maxs[j] = LittleShort(g_dnodes[i].maxs[j]);
         }
-        g_dnodes[i].children[0] = LittleShort(g_dnodes[i].children[0]);
-        g_dnodes[i].children[1] = LittleShort(g_dnodes[i].children[1]);
-        g_dnodes[i].firstface = LittleShort(g_dnodes[i].firstface);
-        g_dnodes[i].numfaces = LittleShort(g_dnodes[i].numfaces);
+        g_dnodes[i].children[0] = LittleLong(g_dnodes[i].children[0]);
+        g_dnodes[i].children[1] = LittleLong(g_dnodes[i].children[1]);
+        g_dnodes[i].firstface = LittleLong(g_dnodes[i].firstface);
+        g_dnodes[i].numfaces = LittleLong(g_dnodes[i].numfaces);
     }
 
     //
@@ -333,8 +336,8 @@ static void     SwapBSPFile(const bool todisk)
             g_dleafs[i].maxs[j] = LittleShort(g_dleafs[i].maxs[j]);
         }
 
-        g_dleafs[i].firstmarksurface = LittleShort(g_dleafs[i].firstmarksurface);
-        g_dleafs[i].nummarksurfaces = LittleShort(g_dleafs[i].nummarksurfaces);
+        g_dleafs[i].firstmarksurface = LittleLong(g_dleafs[i].firstmarksurface);
+        g_dleafs[i].nummarksurfaces = LittleLong(g_dleafs[i].nummarksurfaces);
         g_dleafs[i].visofs = LittleLong(g_dleafs[i].visofs);
     }
 
@@ -374,7 +377,7 @@ static void     SwapBSPFile(const bool todisk)
     //
     for (i = 0; i < g_nummarksurfaces; i++)
     {
-        g_dmarksurfaces[i] = LittleShort(g_dmarksurfaces[i]);
+        g_dmarksurfaces[i] = LittleLong(g_dmarksurfaces[i]);
     }
 
     //
@@ -390,8 +393,8 @@ static void     SwapBSPFile(const bool todisk)
     //
     for (i = 0; i < g_numedges; i++)
     {
-        g_dedges[i].v[0] = LittleShort(g_dedges[i].v[0]);
-        g_dedges[i].v[1] = LittleShort(g_dedges[i].v[1]);
+        g_dedges[i].v[0] = LittleLong(g_dedges[i].v[0]);
+        g_dedges[i].v[1] = LittleLong(g_dedges[i].v[1]);
     }
 }
 
@@ -424,6 +427,124 @@ static int      CopyLump(int lump, void* dest, int size, const dheader_t* const 
 
 
 // =====================================================================================
+//  The lumps whose numbers are 16-bit in a v30 file and 32-bit in BSP2, into the 32-bit arrays
+// =====================================================================================
+static const void* LumpEntries(int lump, int size, int most, const dheader_t* const header, int* count)
+{
+    int length = header->lumps[lump].filelen;
+    if (length % size)
+    {
+        Error("LoadBSPFile: odd lump size");
+    }
+    *count = length / size;
+    if (*count > most)
+    {
+        Error("LoadBSPFile: %d entries in lump %d, more than the %d the tools hold", *count, lump, most);
+    }
+    return (const byte*)header + header->lumps[lump].fileofs;
+}
+
+static void     LoadLeafsAndNodes(const dheader_t* const header)
+{
+    int i, j;
+    if (g_bsp2)
+    {
+        const dleaf2_t* l = (const dleaf2_t*)LumpEntries(LUMP_LEAFS, sizeof(dleaf2_t), MAX_MAP_LEAFS, header, &g_numleafs);
+        for (i = 0; i < g_numleafs; i++)
+        {
+            g_dleafs[i].contents = l[i].contents;
+            g_dleafs[i].visofs = l[i].visofs;
+            for (j = 0; j < 3; j++)
+            {
+                g_dleafs[i].mins[j] = (short)l[i].mins[j];
+                g_dleafs[i].maxs[j] = (short)l[i].maxs[j];
+            }
+            g_dleafs[i].firstmarksurface = l[i].firstmarksurface;
+            g_dleafs[i].nummarksurfaces = l[i].nummarksurfaces;
+            memcpy(g_dleafs[i].ambient_level, l[i].ambient_level, NUM_AMBIENTS);
+        }
+        const dnode2_t* n = (const dnode2_t*)LumpEntries(LUMP_NODES, sizeof(dnode2_t), MAX_MAP_NODES, header, &g_numnodes);
+        for (i = 0; i < g_numnodes; i++)
+        {
+            g_dnodes[i].planenum = n[i].planenum;
+            g_dnodes[i].children[0] = n[i].children[0];
+            g_dnodes[i].children[1] = n[i].children[1];
+            for (j = 0; j < 3; j++)
+            {
+                g_dnodes[i].mins[j] = (short)n[i].mins[j];
+                g_dnodes[i].maxs[j] = (short)n[i].maxs[j];
+            }
+            g_dnodes[i].firstface = n[i].firstface;
+            g_dnodes[i].numfaces = n[i].numfaces;
+        }
+        return;
+    }
+    const dleaf16_t* l = (const dleaf16_t*)LumpEntries(LUMP_LEAFS, sizeof(dleaf16_t), MAX_MAP_LEAFS, header, &g_numleafs);
+    for (i = 0; i < g_numleafs; i++)
+    {
+        g_dleafs[i].contents = l[i].contents;
+        g_dleafs[i].visofs = l[i].visofs;
+        for (j = 0; j < 3; j++)
+        {
+            g_dleafs[i].mins[j] = l[i].mins[j];
+            g_dleafs[i].maxs[j] = l[i].maxs[j];
+        }
+        g_dleafs[i].firstmarksurface = l[i].firstmarksurface;
+        g_dleafs[i].nummarksurfaces = l[i].nummarksurfaces;
+        memcpy(g_dleafs[i].ambient_level, l[i].ambient_level, NUM_AMBIENTS);
+    }
+    const dnode16_t* n = (const dnode16_t*)LumpEntries(LUMP_NODES, sizeof(dnode16_t), MAX_MAP_NODES, header, &g_numnodes);
+    for (i = 0; i < g_numnodes; i++)
+    {
+        g_dnodes[i].planenum = n[i].planenum;
+        g_dnodes[i].children[0] = n[i].children[0];
+        g_dnodes[i].children[1] = n[i].children[1];
+        for (j = 0; j < 3; j++)
+        {
+            g_dnodes[i].mins[j] = n[i].mins[j];
+            g_dnodes[i].maxs[j] = n[i].maxs[j];
+        }
+        g_dnodes[i].firstface = n[i].firstface;
+        g_dnodes[i].numfaces = n[i].numfaces;
+    }
+}
+
+static void     LoadFacesEdgesAndMarks(const dheader_t* const header)
+{
+    int i;
+    if (g_bsp2)
+    {
+        // dface_t, dedge_t and the marksurfaces are BSP2's dface32_t, dedge32_t and dmarkface32_t as they stand
+        g_numfaces = CopyLump(LUMP_FACES, g_dfaces, sizeof(dface_t), header);
+        g_numedges = CopyLump(LUMP_EDGES, g_dedges, sizeof(dedge_t), header);
+        g_nummarksurfaces = CopyLump(LUMP_MARKSURFACES, g_dmarksurfaces, sizeof(g_dmarksurfaces[0]), header);
+        return;
+    }
+    const dface16_t* f = (const dface16_t*)LumpEntries(LUMP_FACES, sizeof(dface16_t), MAX_MAP_FACES, header, &g_numfaces);
+    for (i = 0; i < g_numfaces; i++)
+    {
+        g_dfaces[i].planenum = f[i].planenum;
+        g_dfaces[i].side = f[i].side;
+        g_dfaces[i].firstedge = f[i].firstedge;
+        g_dfaces[i].numedges = f[i].numedges;
+        g_dfaces[i].texinfo = f[i].texinfo;
+        memcpy(g_dfaces[i].styles, f[i].styles, MAXLIGHTMAPS);
+        g_dfaces[i].lightofs = f[i].lightofs;
+    }
+    const dedge16_t* e = (const dedge16_t*)LumpEntries(LUMP_EDGES, sizeof(dedge16_t), MAX_MAP_EDGES, header, &g_numedges);
+    for (i = 0; i < g_numedges; i++)
+    {
+        g_dedges[i].v[0] = e[i].v[0];
+        g_dedges[i].v[1] = e[i].v[1];
+    }
+    const unsigned short* m = (const unsigned short*)LumpEntries(LUMP_MARKSURFACES, sizeof(unsigned short), MAX_MAP_MARKSURFACES, header, &g_nummarksurfaces);
+    for (i = 0; i < g_nummarksurfaces; i++)
+    {
+        g_dmarksurfaces[i] = m[i];
+    }
+}
+
+// =====================================================================================
 //  LoadBSPFile
 //      balh
 // =====================================================================================
@@ -448,28 +569,32 @@ void            LoadBSPImage(dheader_t* const header)
         ((int*)header)[i] = LittleLong(((int*)header)[i]);
     }
 
-    if (header->version != BSPVERSION)
+    if (header->version != BSPVERSION && header->version != BSP2VERSION)
     {
         Error("BSP is version %i, not %i", header->version, BSPVERSION);
+    }
+    g_bsp2 = (header->version == BSP2VERSION);
+    if (g_bsp2 && g_engine->vertexes <= MAX_MAP_VERTS_V30)
+    {
+        Error("The map is Xash's BSP2, which stock GoldSrc will not load: compile it with -xash in every tool.");
     }
 
     g_nummodels = CopyLump(LUMP_MODELS, g_dmodels, sizeof(dmodel_t), header);
     g_numvertexes = CopyLump(LUMP_VERTEXES, g_dvertexes, sizeof(dvertex_t), header);
     g_numplanes = CopyLump(LUMP_PLANES, g_dplanes, sizeof(dplane_t), header);
-    g_numleafs = CopyLump(LUMP_LEAFS, g_dleafs, sizeof(dleaf_t), header);
-    g_numnodes = CopyLump(LUMP_NODES, g_dnodes, sizeof(dnode_t), header);
+    LoadLeafsAndNodes(header);
     g_numtexinfo = CopyLump(LUMP_TEXINFO, g_texinfo, sizeof(texinfo_t), header);
     {
         // bsp30ext: a dextrahdr_t follows the header, and the clipnodes lump may hold 32-bit entries (Xash tells by the
         // lump length: not a multiple of 8, or at least 32767 entries of 12 bytes)
         const dextrahdr_t* ext = (const dextrahdr_t*)((const byte*)header + sizeof(dheader_t));
         int len = header->lumps[LUMP_CLIPNODES].filelen;
-        g_bsp30ext = (ext->id == IDEXTRAHEADER && ext->version == EXTRA_VERSION);
+        g_bsp30ext = !g_bsp2 && (ext->id == IDEXTRAHEADER && ext->version == EXTRA_VERSION);
         if (g_bsp30ext && g_engine->clipnodes <= MAX_MAP_CLIPNODES_HLBSP)
         {
             Error("The map is Xash's bsp30ext, which stock GoldSrc will not load: compile it with -xash in every tool.");
         }
-        if (g_bsp30ext &&((len % sizeof(dclipnode16_t)) || (len / (int)sizeof(dclipnode32_t)) >= MAX_MAP_CLIPNODES_HLBSP))
+        if (g_bsp2 || (g_bsp30ext && ((len % sizeof(dclipnode16_t)) || (len / (int)sizeof(dclipnode32_t)) >= MAX_MAP_CLIPNODES_HLBSP)))
         {
             g_numclipnodes = CopyLump(LUMP_CLIPNODES, g_dclipnodes, sizeof(dclipnode32_t), header);
         }
@@ -486,10 +611,8 @@ void            LoadBSPImage(dheader_t* const header)
             free(c16);
         }
     }
-    g_numfaces = CopyLump(LUMP_FACES, g_dfaces, sizeof(dface_t), header);
-    g_nummarksurfaces = CopyLump(LUMP_MARKSURFACES, g_dmarksurfaces, sizeof(g_dmarksurfaces[0]), header);
+    LoadFacesEdgesAndMarks(header);
     g_numsurfedges = CopyLump(LUMP_SURFEDGES, g_dsurfedges, sizeof(g_dsurfedges[0]), header);
-    g_numedges = CopyLump(LUMP_EDGES, g_dedges, sizeof(dedge_t), header);
     g_texdatasize = CopyLump(LUMP_TEXTURES, g_dtexdata, 1, header);
     g_visdatasize = CopyLump(LUMP_VISIBILITY, g_dvisdata, 1, header);
     g_lightdatasize = CopyLump(LUMP_LIGHTING, g_dlightdata, 1, header);
@@ -533,6 +656,179 @@ static void     AddLump(int lumpnum, void* data, int len, dheader_t* header, FIL
     lump->fileofs = LittleLong(ftell(bspfile));
     lump->filelen = LittleLong(len);
     SafeWrite(bspfile, data, (len + 3) & ~3);
+}
+
+// =====================================================================================
+//  The lumps whose numbers are 16-bit in a v30 file: as v30 has them, or as BSP2 (g_bsp2). Called after
+//  SwapBSPFile(true), as the clipnodes are: on a little-endian machine the numbers are as they were.
+// =====================================================================================
+// What is past a v30 file's 16-bit numbers, in words ("" when nothing is)
+static void     V30Overflows(char* out, int size)
+{
+    int faceplane = 0, facetexinfo = 0, faceedges = 0;
+    for (int i = 0; i < g_numfaces; i++)
+    {
+        faceplane = qmax(faceplane, g_dfaces[i].planenum);
+        facetexinfo = qmax(facetexinfo, g_dfaces[i].texinfo);
+        faceedges = qmax(faceedges, g_dfaces[i].numedges);
+    }
+    out[0] = '\0';
+    struct { const char* what; int has; int most; } over[] =
+    {
+        { "vertexes", g_numvertexes, MAX_MAP_VERTS_V30 },
+        { "nodes", g_numnodes, MAX_MAP_NODES_V30 },
+        { "leaves", g_numleafs, MAX_MAP_LEAFS_V30 },
+        { "faces", g_numfaces, MAX_MAP_FACES_V30 },
+        { "marksurfaces", g_nummarksurfaces, MAX_MAP_MARKSURFACES_V30 },
+        { "a face's plane", faceplane, 65535 },
+        { "a face's texinfo", facetexinfo, 32767 },
+        { "a face's edges", faceedges, 32767 },
+    };
+    for (unsigned k = 0; k < sizeof(over) / sizeof(over[0]); k++)
+    {
+        if (over[k].has > over[k].most)
+        {
+            int at = (int)strlen(out);
+            snprintf(out + at, size - at, "%s%d %s (v30: %d)", at ? ", " : "", over[k].has, over[k].what, over[k].most);
+        }
+    }
+}
+
+static void     AddLeafs(dheader_t* header, FILE* bspfile)
+{
+    int i, j;
+    if (g_bsp2)
+    {
+        dleaf2_t* l = (dleaf2_t*)calloc(g_numleafs + 1, sizeof(dleaf2_t));
+        for (i = 0; i < g_numleafs; i++)
+        {
+            l[i].contents = g_dleafs[i].contents;
+            l[i].visofs = g_dleafs[i].visofs;
+            for (j = 0; j < 3; j++)
+            {
+                l[i].mins[j] = g_dleafs[i].mins[j];
+                l[i].maxs[j] = g_dleafs[i].maxs[j];
+            }
+            l[i].firstmarksurface = g_dleafs[i].firstmarksurface;
+            l[i].nummarksurfaces = g_dleafs[i].nummarksurfaces;
+            memcpy(l[i].ambient_level, g_dleafs[i].ambient_level, NUM_AMBIENTS);
+        }
+        AddLump(LUMP_LEAFS, l, g_numleafs * sizeof(dleaf2_t), header, bspfile);
+        free(l);
+        return;
+    }
+    dleaf16_t* l = (dleaf16_t*)calloc(g_numleafs + 1, sizeof(dleaf16_t));
+    for (i = 0; i < g_numleafs; i++)
+    {
+        l[i].contents = g_dleafs[i].contents;
+        l[i].visofs = g_dleafs[i].visofs;
+        for (j = 0; j < 3; j++)
+        {
+            l[i].mins[j] = g_dleafs[i].mins[j];
+            l[i].maxs[j] = g_dleafs[i].maxs[j];
+        }
+        l[i].firstmarksurface = (unsigned short)g_dleafs[i].firstmarksurface;
+        l[i].nummarksurfaces = (unsigned short)g_dleafs[i].nummarksurfaces;
+        memcpy(l[i].ambient_level, g_dleafs[i].ambient_level, NUM_AMBIENTS);
+    }
+    AddLump(LUMP_LEAFS, l, g_numleafs * sizeof(dleaf16_t), header, bspfile);
+    free(l);
+}
+
+static void     AddNodes(dheader_t* header, FILE* bspfile)
+{
+    int i, j;
+    if (g_bsp2)
+    {
+        dnode2_t* n = (dnode2_t*)calloc(g_numnodes + 1, sizeof(dnode2_t));
+        for (i = 0; i < g_numnodes; i++)
+        {
+            n[i].planenum = g_dnodes[i].planenum;
+            n[i].children[0] = g_dnodes[i].children[0];
+            n[i].children[1] = g_dnodes[i].children[1];
+            for (j = 0; j < 3; j++)
+            {
+                n[i].mins[j] = g_dnodes[i].mins[j];
+                n[i].maxs[j] = g_dnodes[i].maxs[j];
+            }
+            n[i].firstface = g_dnodes[i].firstface;
+            n[i].numfaces = g_dnodes[i].numfaces;
+        }
+        AddLump(LUMP_NODES, n, g_numnodes * sizeof(dnode2_t), header, bspfile);
+        free(n);
+        return;
+    }
+    dnode16_t* n = (dnode16_t*)calloc(g_numnodes + 1, sizeof(dnode16_t));
+    for (i = 0; i < g_numnodes; i++)
+    {
+        n[i].planenum = g_dnodes[i].planenum;
+        n[i].children[0] = (short)g_dnodes[i].children[0];
+        n[i].children[1] = (short)g_dnodes[i].children[1];
+        for (j = 0; j < 3; j++)
+        {
+            n[i].mins[j] = g_dnodes[i].mins[j];
+            n[i].maxs[j] = g_dnodes[i].maxs[j];
+        }
+        n[i].firstface = (unsigned short)g_dnodes[i].firstface;
+        n[i].numfaces = (unsigned short)g_dnodes[i].numfaces;
+    }
+    AddLump(LUMP_NODES, n, g_numnodes * sizeof(dnode16_t), header, bspfile);
+    free(n);
+}
+
+static void     AddFaces(dheader_t* header, FILE* bspfile)
+{
+    if (g_bsp2)
+    {
+        AddLump(LUMP_FACES, g_dfaces, g_numfaces * sizeof(dface_t), header, bspfile);   // BSP2's dface32_t
+        return;
+    }
+    dface16_t* f = (dface16_t*)calloc(g_numfaces + 1, sizeof(dface16_t));
+    for (int i = 0; i < g_numfaces; i++)
+    {
+        f[i].planenum = (unsigned short)g_dfaces[i].planenum;
+        f[i].side = (short)g_dfaces[i].side;
+        f[i].firstedge = g_dfaces[i].firstedge;
+        f[i].numedges = (short)g_dfaces[i].numedges;
+        f[i].texinfo = (short)g_dfaces[i].texinfo;
+        memcpy(f[i].styles, g_dfaces[i].styles, MAXLIGHTMAPS);
+        f[i].lightofs = g_dfaces[i].lightofs;
+    }
+    AddLump(LUMP_FACES, f, g_numfaces * sizeof(dface16_t), header, bspfile);
+    free(f);
+}
+
+static void     AddMarksurfaces(dheader_t* header, FILE* bspfile)
+{
+    if (g_bsp2)
+    {
+        AddLump(LUMP_MARKSURFACES, g_dmarksurfaces, g_nummarksurfaces * sizeof(g_dmarksurfaces[0]), header, bspfile);
+        return;
+    }
+    unsigned short* m = (unsigned short*)calloc(g_nummarksurfaces + 2, sizeof(unsigned short));
+    for (int i = 0; i < g_nummarksurfaces; i++)
+    {
+        m[i] = (unsigned short)g_dmarksurfaces[i];
+    }
+    AddLump(LUMP_MARKSURFACES, m, g_nummarksurfaces * sizeof(unsigned short), header, bspfile);
+    free(m);
+}
+
+static void     AddEdges(dheader_t* header, FILE* bspfile)
+{
+    if (g_bsp2)
+    {
+        AddLump(LUMP_EDGES, g_dedges, g_numedges * sizeof(dedge_t), header, bspfile);     // BSP2's dedge32_t
+        return;
+    }
+    dedge16_t* e = (dedge16_t*)calloc(g_numedges + 1, sizeof(dedge16_t));
+    for (int i = 0; i < g_numedges; i++)
+    {
+        e[i].v[0] = (unsigned short)g_dedges[i].v[0];
+        e[i].v[1] = (unsigned short)g_dedges[i].v[1];
+    }
+    AddLump(LUMP_EDGES, e, g_numedges * sizeof(dedge16_t), header, bspfile);
+    free(e);
 }
 
 // =====================================================================================
@@ -585,8 +881,23 @@ void            WriteBSPFile(const char* const filename)
     header = &outheader;
     memset(header, 0, sizeof(dheader_t));
 
-    // over the v30 ceiling: Xash bsp30ext — the extra header right after the standard one, clipnodes as 32-bit
-    g_bsp30ext = (g_numclipnodes > MAX_MAP_CLIPNODES_HLBSP);
+    // past a v30 file's 16-bit numbers anywhere but the clipnodes: Xash's BSP2, every number 32-bit
+    char over[256] = "";
+    V30Overflows(over, sizeof(over));
+    g_bsp2 = (over[0] != '\0');
+    if (g_bsp2)
+    {
+        if (g_engine->vertexes <= MAX_MAP_VERTS_V30)
+        {
+            Error("%s past what a version 30 map can number, and %s holds no more. Fewer, or -xash in every tool for Xash's BSP2, which stock GoldSrc will not load.",
+                over, g_engine->name);
+        }
+        Log("%s past what a version 30 map can number: writing Xash BSP2 (32-bit numbers; stock GoldSrc will not load it)\n", over);
+    }
+
+    // over the v30 ceiling in the clipnodes alone: Xash bsp30ext — the extra header right after the standard one,
+    // clipnodes as 32-bit
+    g_bsp30ext = !g_bsp2 && (g_numclipnodes > MAX_MAP_CLIPNODES_HLBSP);
     if (g_bsp30ext)
     {
         if (g_engine->clipnodes <= MAX_MAP_CLIPNODES_HLBSP)
@@ -601,7 +912,7 @@ void            WriteBSPFile(const char* const filename)
 
     SwapBSPFile(true);
 
-    header->version = LittleLong(BSPVERSION);
+    header->version = LittleLong(g_bsp2 ? BSP2VERSION : BSPVERSION);
 
     bspfile = SafeOpenWrite(filename);
     SafeWrite(bspfile, header, sizeof(dheader_t));         // overwritten later
@@ -616,12 +927,12 @@ void            WriteBSPFile(const char* const filename)
 
     //      LUMP TYPE       DATA            LENGTH                              HEADER  BSPFILE   
     AddLump(LUMP_PLANES,    g_dplanes,      g_numplanes * sizeof(dplane_t),     header, bspfile);
-    AddLump(LUMP_LEAFS,     g_dleafs,       g_numleafs * sizeof(dleaf_t),       header, bspfile);
+    AddLeafs(header, bspfile);
     AddLump(LUMP_VERTEXES,  g_dvertexes,    g_numvertexes * sizeof(dvertex_t),  header, bspfile);
-    AddLump(LUMP_NODES,     g_dnodes,       g_numnodes * sizeof(dnode_t),       header, bspfile);
+    AddNodes(header, bspfile);
     AddLump(LUMP_TEXINFO,   g_texinfo,      g_numtexinfo * sizeof(texinfo_t),   header, bspfile);
-    AddLump(LUMP_FACES,     g_dfaces,       g_numfaces * sizeof(dface_t),       header, bspfile);
-    if (g_bsp30ext)
+    AddFaces(header, bspfile);
+    if (g_bsp2 || g_bsp30ext)
     {
         AddLump(LUMP_CLIPNODES, g_dclipnodes, g_numclipnodes * sizeof(dclipnode32_t), header, bspfile);
     }
@@ -638,9 +949,9 @@ void            WriteBSPFile(const char* const filename)
         free(c16);
     }
 
-    AddLump(LUMP_MARKSURFACES, g_dmarksurfaces, g_nummarksurfaces * sizeof(g_dmarksurfaces[0]), header, bspfile);
+    AddMarksurfaces(header, bspfile);
     AddLump(LUMP_SURFEDGES, g_dsurfedges,   g_numsurfedges * sizeof(g_dsurfedges[0]), header, bspfile);
-    AddLump(LUMP_EDGES,     g_dedges,       g_numedges * sizeof(dedge_t),       header, bspfile);
+    AddEdges(header, bspfile);
     AddLump(LUMP_MODELS,    g_dmodels,      g_nummodels * sizeof(dmodel_t),     header, bspfile);
 
     AddLump(LUMP_LIGHTING,  g_dlightdata,   g_lightdatasize,                    header, bspfile);
@@ -1162,15 +1473,15 @@ void            PrintBSPFileSizes()
 
     totalmemory += ArrayUsage("models", g_nummodels, g_engine->models, ENTRYSIZE(g_dmodels));
     totalmemory += ArrayUsage("planes", g_numplanes, g_engine->planes, ENTRYSIZE(g_dplanes));
-    totalmemory += ArrayUsage("vertexes", g_numvertexes, ENTRIES(g_dvertexes), ENTRYSIZE(g_dvertexes));
-    totalmemory += ArrayUsage("nodes", g_numnodes, ENTRIES(g_dnodes), ENTRYSIZE(g_dnodes));
+    totalmemory += ArrayUsage("vertexes", g_numvertexes, g_engine->vertexes, ENTRYSIZE(g_dvertexes));
+    totalmemory += ArrayUsage("nodes", g_numnodes, g_engine->nodes, ENTRYSIZE(g_dnodes));
     totalmemory += ArrayUsage("texinfos", g_numtexinfo, MAX_MAP_TEXINFO, ENTRYSIZE(g_texinfo));
-    totalmemory += ArrayUsage("faces", g_numfaces, ENTRIES(g_dfaces), ENTRYSIZE(g_dfaces));
+    totalmemory += ArrayUsage("faces", g_numfaces, g_engine->faces, ENTRYSIZE(g_dfaces));
 	totalmemory += ArrayUsage("* worldfaces", (g_nummodels > 0? g_dmodels[0].numfaces: 0), g_engine->worldfaces, 0);
     totalmemory += ArrayUsage("clipnodes", g_numclipnodes, g_engine->clipnodes, ENTRYSIZE(g_dclipnodes));
     totalmemory += ArrayUsage("leaves", g_numleafs, MAX_MAP_LEAFS, ENTRYSIZE(g_dleafs));
     totalmemory += ArrayUsage("* worldleaves", (g_nummodels > 0? g_dmodels[0].visleafs: 0), g_engine->worldleaves, 0);
-    totalmemory += ArrayUsage("marksurfaces", g_nummarksurfaces, ENTRIES(g_dmarksurfaces), ENTRYSIZE(g_dmarksurfaces));
+    totalmemory += ArrayUsage("marksurfaces", g_nummarksurfaces, g_engine->marksurfaces, ENTRYSIZE(g_dmarksurfaces));
     totalmemory += ArrayUsage("surfedges", g_numsurfedges, ENTRIES(g_dsurfedges), ENTRYSIZE(g_dsurfedges));
     totalmemory += ArrayUsage("edges", g_numedges, ENTRIES(g_dedges), ENTRYSIZE(g_dedges));
 

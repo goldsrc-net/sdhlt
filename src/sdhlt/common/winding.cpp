@@ -383,7 +383,7 @@ Winding::Winding(const dface_t& face
     m_Points = new vec3_t[m_NumPoints];
 
     unsigned i;
-    for (i = 0; i < face.numedges; i++)
+    for (i = 0; i < (unsigned)face.numedges; i++)
     {
         se = g_dsurfedges[face.firstedge + i];
         if (se < 0)

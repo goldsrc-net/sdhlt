@@ -258,7 +258,7 @@ static int		WriteDrawLeaf (node_t *node, const node_t *portalleaf)
 				continue;
 			}
             g_dmarksurfaces[g_nummarksurfaces] = f->outputnumber;
-            hlassume(g_nummarksurfaces < MAX_MAP_MARKSURFACES, assume_MAX_MAP_MARKSURFACES);
+            hlassume(g_nummarksurfaces < g_engine->marksurfaces, assume_MAX_MAP_MARKSURFACES);
             g_nummarksurfaces++;
             f = f->original;                               // grab tjunction split faces
         }
@@ -301,7 +301,7 @@ static void     WriteFace(face_t* f)
     f->outputnumber = g_numfaces;
 
     df = &g_dfaces[g_numfaces];
-    hlassume(g_numfaces < MAX_MAP_FACES, assume_MAX_MAP_FACES);
+    hlassume(g_numfaces < g_engine->faces, assume_MAX_MAP_FACES);
     g_numfaces++;
 
 	{
@@ -365,7 +365,7 @@ static int WriteDrawNodes_r (node_t *node, const node_t *portalleaf)
 	int nodenum = g_numnodes;
 
     // emit a node
-    hlassume(g_numnodes < MAX_MAP_NODES, assume_MAX_MAP_NODES);
+    hlassume(g_numnodes < g_engine->nodes, assume_MAX_MAP_NODES);
     n = &g_dnodes[g_numnodes];
     g_numnodes++;
 

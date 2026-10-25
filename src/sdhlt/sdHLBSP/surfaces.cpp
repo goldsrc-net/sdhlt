@@ -306,11 +306,11 @@ static int      GetVertex(const vec3_t in, const int planenum)
     hashverts[h] = hv;
     VectorCopy(vert, hv->point);
     hv->num = g_numvertexes;
-    hlassume(hv->num != MAX_MAP_VERTS, assume_MAX_MAP_VERTS);
+    hlassume(hv->num != g_engine->vertexes, assume_MAX_MAP_VERTS);
     hvert_p++;
 
     // emit a vertex
-    hlassume(g_numvertexes < MAX_MAP_VERTS, assume_MAX_MAP_VERTS);
+    hlassume(g_numvertexes < g_engine->vertexes, assume_MAX_MAP_VERTS);
 
     g_dvertexes[g_numvertexes].point[0] = vert[0];
     g_dvertexes[g_numvertexes].point[1] = vert[1];
