@@ -13,6 +13,23 @@
 int             g_max_map_miptex = DEFAULT_MAX_MAP_MIPTEX;
 int				g_max_map_lightdata = DEFAULT_MAX_MAP_LIGHTDATA;
 
+static const enginelimits_t s_goldsrc =
+{
+    "GoldSrc", 512, 32768, 32768, MAX_MAP_CLIPNODES_HLBSP, MAX_MAP_CLIPNODES_HLBSP,
+    32768, MAX_MAP_LEAFS_ENGINE, 64, 0x800000, 0, MAX_ENGINE_ENTITIES, 0,
+};
+static const enginelimits_t s_xash =
+{
+    "Xash3D FWGS", 2048, 131072, 65536, MAX_MAP_CLIPNODES, MAX_MAP_CLIPNODES_HLBSP,
+    65535, MAX_MAP_LEAFS, 256, 0x1000000, 0x2000000, 8192, 1200,          // 1200: its gameinfo.c's max_edicts
+};
+const enginelimits_t* g_engine = &s_goldsrc;
+
+void            SetEngineXash()
+{
+    g_engine = &s_xash;
+}
+
 int             g_nummodels;
 dmodel_t        g_dmodels[MAX_MAP_MODELS];
 int             g_dmodels_checksum;
@@ -448,7 +465,11 @@ void            LoadBSPImage(dheader_t* const header)
         const dextrahdr_t* ext = (const dextrahdr_t*)((const byte*)header + sizeof(dheader_t));
         int len = header->lumps[LUMP_CLIPNODES].filelen;
         g_bsp30ext = (ext->id == IDEXTRAHEADER && ext->version == EXTRA_VERSION);
-        if (g_bsp30ext && ((len % sizeof(dclipnode16_t)) || (len / (int)sizeof(dclipnode32_t)) >= MAX_MAP_CLIPNODES_HLBSP))
+        if (g_bsp30ext && g_engine->clipnodes <= MAX_MAP_CLIPNODES_HLBSP)
+        {
+            Error("The map is Xash's bsp30ext, which stock GoldSrc will not load: compile it with -xash in every tool.");
+        }
+        if (g_bsp30ext &&((len % sizeof(dclipnode16_t)) || (len / (int)sizeof(dclipnode32_t)) >= MAX_MAP_CLIPNODES_HLBSP))
         {
             g_numclipnodes = CopyLump(LUMP_CLIPNODES, g_dclipnodes, sizeof(dclipnode32_t), header);
         }
@@ -515,6 +536,43 @@ static void     AddLump(int lumpnum, void* data, int len, dheader_t* header, FIL
 }
 
 // =====================================================================================
+//  CheckHullClipnodes
+//      Xash remaps a bsp30ext map's clipnodes to 16 bits hull by hull, counting every node it walks from a hull's
+//      head (a subtree two parents share counts twice), and stops the game past 32767 (CountDClipNodes_r)
+// =====================================================================================
+static int      CountHullClipnodes_r(const int nodenum, int count)
+{
+    if (nodenum < 0 || count > g_engine->hullclipnodes)
+    {
+        return count;
+    }
+    count++;
+    count = CountHullClipnodes_r(g_dclipnodes[nodenum].children[0], count);
+    return CountHullClipnodes_r(g_dclipnodes[nodenum].children[1], count);
+}
+
+static void     CheckHullClipnodes()
+{
+    for (int i = 0; i < g_nummodels; i++)
+    {
+        for (int hull = 1; hull < MAX_MAP_HULLS; hull++)
+        {
+            int headnode = g_dmodels[i].headnode[hull];
+            if (headnode < 0 || headnode >= g_numclipnodes || (hull != 1 && headnode == 0))
+            {
+                continue;                                  // Xash skips these hulls too
+            }
+            int count = CountHullClipnodes_r(headnode, 0);
+            if (count > g_engine->hullclipnodes)
+            {
+                Error("Model %d's hull %d walks more than %d clipnodes, the most %s holds in one hull.",
+                    i, hull, g_engine->hullclipnodes, g_engine->name);
+            }
+        }
+    }
+}
+
+// =====================================================================================
 //  WriteBSPFile
 //      Swaps the bsp file in place, so it should not be referenced again
 // =====================================================================================
@@ -527,17 +585,23 @@ void            WriteBSPFile(const char* const filename)
     header = &outheader;
     memset(header, 0, sizeof(dheader_t));
 
-    SwapBSPFile(true);
-
-    header->version = LittleLong(BSPVERSION);
-
     // over the v30 ceiling: Xash bsp30ext — the extra header right after the standard one, clipnodes as 32-bit
     g_bsp30ext = (g_numclipnodes > MAX_MAP_CLIPNODES_HLBSP);
     if (g_bsp30ext)
     {
+        if (g_engine->clipnodes <= MAX_MAP_CLIPNODES_HLBSP)
+        {
+            Error("%d clipnodes, and %s holds %d. Fewer, or -xash in every tool for Xash's bsp30ext, which stock GoldSrc will not load.",
+                g_numclipnodes, g_engine->name, MAX_MAP_CLIPNODES_HLBSP);
+        }
+        CheckHullClipnodes();
         Log("%d clipnodes exceed the v30 limit of %d: writing Xash bsp30ext (32-bit clipnodes; stock GoldSrc will not load it)\n",
             g_numclipnodes, MAX_MAP_CLIPNODES_HLBSP);
     }
+
+    SwapBSPFile(true);
+
+    header->version = LittleLong(BSPVERSION);
 
     bspfile = SafeOpenWrite(filename);
     SafeWrite(bspfile, header, sizeof(dheader_t));         // overwritten later
@@ -1087,31 +1151,32 @@ void            PrintBSPFileSizes()
     int             numtextures = g_texdatasize ? ((dmiptexlump_t*)g_dtexdata)->nummiptex : 0;
     int             totalmemory = 0;
 	int numallocblocks = CountBlocks ();
-	int maxallocblocks = 64;
+	int maxallocblocks = g_engine->allocblocks;
 	bool nowadtextures = NoWadTextures (); // We don't have this check at hlcsg, because only legacy compile tools don't empty "wad" value in "-nowadtextures" compiles.
 	char *wadvalue = FindWadValue ();
 
     Log("\n");
+    Log("Limits of %s\n", g_engine->name);
     Log("Object names  Objects/Maxobjs  Memory / Maxmem  Fullness\n");
     Log("------------  ---------------  ---------------  --------\n");
 
-    totalmemory += ArrayUsage("models", g_nummodels, ENTRIES(g_dmodels), ENTRYSIZE(g_dmodels));
-    totalmemory += ArrayUsage("planes", g_numplanes, MAX_MAP_PLANES, ENTRYSIZE(g_dplanes));
+    totalmemory += ArrayUsage("models", g_nummodels, g_engine->models, ENTRYSIZE(g_dmodels));
+    totalmemory += ArrayUsage("planes", g_numplanes, g_engine->planes, ENTRYSIZE(g_dplanes));
     totalmemory += ArrayUsage("vertexes", g_numvertexes, ENTRIES(g_dvertexes), ENTRYSIZE(g_dvertexes));
     totalmemory += ArrayUsage("nodes", g_numnodes, ENTRIES(g_dnodes), ENTRYSIZE(g_dnodes));
     totalmemory += ArrayUsage("texinfos", g_numtexinfo, MAX_MAP_TEXINFO, ENTRYSIZE(g_texinfo));
     totalmemory += ArrayUsage("faces", g_numfaces, ENTRIES(g_dfaces), ENTRYSIZE(g_dfaces));
-	totalmemory += ArrayUsage("* worldfaces", (g_nummodels > 0? g_dmodels[0].numfaces: 0), MAX_MAP_WORLDFACES, 0);
-    totalmemory += ArrayUsage("clipnodes", g_numclipnodes, ENTRIES(g_dclipnodes), ENTRYSIZE(g_dclipnodes));
+	totalmemory += ArrayUsage("* worldfaces", (g_nummodels > 0? g_dmodels[0].numfaces: 0), g_engine->worldfaces, 0);
+    totalmemory += ArrayUsage("clipnodes", g_numclipnodes, g_engine->clipnodes, ENTRYSIZE(g_dclipnodes));
     totalmemory += ArrayUsage("leaves", g_numleafs, MAX_MAP_LEAFS, ENTRYSIZE(g_dleafs));
-    totalmemory += ArrayUsage("* worldleaves", (g_nummodels > 0? g_dmodels[0].visleafs: 0), MAX_MAP_LEAFS_ENGINE, 0);
+    totalmemory += ArrayUsage("* worldleaves", (g_nummodels > 0? g_dmodels[0].visleafs: 0), g_engine->worldleaves, 0);
     totalmemory += ArrayUsage("marksurfaces", g_nummarksurfaces, ENTRIES(g_dmarksurfaces), ENTRYSIZE(g_dmarksurfaces));
     totalmemory += ArrayUsage("surfedges", g_numsurfedges, ENTRIES(g_dsurfedges), ENTRYSIZE(g_dsurfedges));
     totalmemory += ArrayUsage("edges", g_numedges, ENTRIES(g_dedges), ENTRYSIZE(g_dedges));
 
     totalmemory += GlobUsage("texdata", g_texdatasize, g_max_map_miptex);
     totalmemory += GlobUsage("lightdata", g_lightdatasize, g_max_map_lightdata);
-    totalmemory += GlobUsage("visdata", g_visdatasize, sizeof(g_dvisdata));
+    totalmemory += GlobUsage("visdata", g_visdatasize, g_engine->visdata);
     totalmemory += GlobUsage("entdata", g_entdatasize, sizeof(g_dentdata));
 	if (numallocblocks == -1)
 	{
@@ -1123,6 +1188,10 @@ void            PrintBSPFileSizes()
 	}
 
     Log("%i textures referenced\n", numtextures);
+    if (g_engine->lightdata && g_lightdatasize > g_engine->lightdata)
+    {
+        Warning("%d bytes of light: %s warns of a map with more than %d", g_lightdatasize, g_engine->name, g_engine->lightdata);
+    }
 
     Log("=== Total BSP file data space used: %d bytes ===\n\n", totalmemory);
 	if (nowadtextures)

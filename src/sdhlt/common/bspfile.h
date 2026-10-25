@@ -11,8 +11,9 @@
 #define MAX_MAP_HULLS            4
 // hard limit
 
-#define MAX_MAP_MODELS         512 //400 //vluzacn
+#define MAX_MAP_MODELS        2048 //512 //400 //vluzacn
 // variable, but 400 brush entities is very stressful on the engine and network code as it is
+// The arrays here are sized for the larger of the two engines (-xash); g_engine holds what the chosen one takes.
 
 #define MAX_MAP_BRUSHES       32768
 // arbitrary, but large numbers of brushes generally require more lightmap's than the compiler can handle
@@ -24,7 +25,7 @@
 #define MAX_MAP_ENTSTRING   (2048*1024) //(512*1024) //vluzacn
 // abitrary, 512Kb of string data should be plenty even with TFC FGD's
 
-#define MAX_MAP_PLANES      32768 // TODO: This can be larger, because although faces can only use plane 0~32767, clipnodes can use plane 0-65535. --vluzacn
+#define MAX_MAP_PLANES      131072 // GoldSrc 32768 (g_engine->planes) // TODO: This can be larger, because although faces can only use plane 0~32767, clipnodes can use plane 0-65535. --vluzacn
 #define MAX_INTERNAL_MAP_PLANES (256*1024)
 // (from email): I have been building a rather complicated map, and using your latest 
 // tools (1.61) it seemed to compile fine.  However, in game, the engine was dropping
@@ -36,7 +37,7 @@
 #define MAX_MAP_NODES        32767
 // hard limit (negative short's are used as contents values)
 #define MAX_MAP_CLIPNODES_HLBSP 32767   // the v30 file format: dclipnode_t children are int16
-#define MAX_MAP_CLIPNODES    262144  // the working set; a map over the v30 ceiling is written as Xash bsp30ext (32-bit clipnodes)
+#define MAX_MAP_CLIPNODES    524288  // the working set; over the v30 ceiling, -xash writes Xash bsp30ext (32-bit clipnodes)
 // hard limit (negative short's are used as contents values)
 
 #define MAX_MAP_LEAFS        32760
@@ -70,8 +71,8 @@
 #define DEFAULT_MAX_MAP_LIGHTDATA	0x3000000 //0x600000 //vluzacn
 // arbitrary
 
-#define MAX_MAP_VISIBILITY  0x800000 //0x200000 //vluzacn
-// arbitrary
+#define MAX_MAP_VISIBILITY  0x1000000 //0x800000 //0x200000 //vluzacn
+// arbitrary; GoldSrc 8 MB (g_engine->visdata)
 
 // these are for entity key:value pairs
 #define MAX_KEY                 128 //32 //vluzacn
@@ -438,6 +439,29 @@ extern void FormatEntityInfo(const entity_t* const ent, char* const buffer, cons
 
 extern int      g_max_map_miptex;
 extern int		g_max_map_lightdata;
+
+// The engine a map is compiled for, and the limits it holds a version 30 map to. GoldSrc is the default; -xash
+// takes Xash3D FWGS's, read from its engine/common/mod_bmodel.c (the lump table and CountDClipNodes_r), its
+// ref/gl/gl_local.h (MAX_LIGHTMAPS) and its common/bspfile.h. Every tool takes -xash, as each prints these.
+typedef struct
+{
+    const char*     name;
+    int             models;                                // brush models
+    int             planes;
+    int             faceplanes;                            // the planes a face may name
+    int             clipnodes;                             // in all: over MAX_MAP_CLIPNODES_HLBSP is bsp30ext
+    int             hullclipnodes;                         // in one hull of one model, as Xash counts them in bsp30ext
+    int             worldfaces;                            // the faces a leaf may name (marksurfaces)
+    int             worldleaves;
+    int             allocblocks;                           // 128x128 lightmap pages
+    int             visdata;
+    int             lightdata;                             // over it the engine warns; 0: it does not
+    int             entities;                              // that the engine can hold at once
+    int             entitiesdefault;                       // as many when the mod says nothing; 0: the same
+}
+enginelimits_t;
+extern const enginelimits_t* g_engine;
+extern void     SetEngineXash();
 extern void     dtexdata_init();
 extern void CDECL dtexdata_free();
 

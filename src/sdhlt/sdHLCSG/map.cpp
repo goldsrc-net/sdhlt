@@ -1092,7 +1092,12 @@ void            LoadMapFile(const char* const filename)
 
     num_engine_entities = CountEngineEntities();
 
-    hlassume(num_engine_entities < MAX_ENGINE_ENTITIES, assume_MAX_ENGINE_ENTITIES);
+    hlassume(num_engine_entities < (unsigned int)g_engine->entities, assume_MAX_ENGINE_ENTITIES);
+    if (g_engine->entitiesdefault && num_engine_entities > (unsigned int)g_engine->entitiesdefault)
+    {
+        Warning("%d entities: %s holds as many as the mod's gameinfo max_edicts says, %d when it says nothing",
+            num_engine_entities, g_engine->name, g_engine->entitiesdefault);
+    }
 
     CheckFatal();
 

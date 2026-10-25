@@ -1011,7 +1011,7 @@ static void     LoadPortals(char* portal_image)
     originalvismapsize = g_portalleafs * ((g_portalleafs + 7) / 8);
 
     vismap = vismap_p = g_dvisdata;
-    vismap_end = vismap + MAX_MAP_VISIBILITY;
+    vismap_end = vismap + g_engine->visdata;
 
 	if (g_portalleafs > MAX_MAP_LEAFS)
 	{ // this may cause hlvis to overflow, because numportalleafs can be larger than g_numleafs in some special cases
@@ -1262,6 +1262,7 @@ static void     Usage(const char* paramWarning = 0, bool mapfileWarning = false)
     Log("    -rate #          : Alter the display update rate\n\n");
 #endif
     Log("    -texdata #      : Alter maximum texture memory limit (in kb)\n");
+    Log("    -xash           : Hold the map to Xash3D FWGS's limits, not GoldSrc's\n");
     Log("    -lightdata #    : Alter maximum lighting memory limit (in kb)\n"); //lightdata //--vluzacn
     Log("    -chart          : display bsp statitics\n");
     Log("    -low | -high    : run program an altered priority level\n");
@@ -1326,6 +1327,7 @@ static void     Settings()
     Log("chart               [ %7s ] [ %7s ]\n", g_chart ? "on" : "off", DEFAULT_CHART ? "on" : "off");
     Log("estimate            [ %7s ] [ %7s ]\n", g_estimate ? "on" : "off", DEFAULT_ESTIMATE ? "on" : "off");
     Log("max texture memory  [ %7d ] [ %7d ]\n", g_max_map_miptex, DEFAULT_MAX_MAP_MIPTEX);
+    Log("engine              [ %7s ] [ %7s ]\n", g_engine->name, "GoldSrc");
 
     Log("max vis distance    [ %7d ] [ %7d ]\n", g_maxdistance, DEFAULT_MAXDISTANCE_RANGE);
 	//Log("max dist only       [ %7s ] [ %7s ]\n", g_postcompile ? "on" : "off", DEFAULT_POST_COMPILE ? "on" : "off");
@@ -1747,6 +1749,10 @@ int             main(const int argc, char** argv)
         else if (!strcasecmp(argv[i], "-nolog"))
         {
             g_log = false;
+        }
+        else if (!strcasecmp(argv[i], "-xash"))
+        {
+            SetEngineXash();
         }
         else if (!strcasecmp(argv[i], "-texdata"))
         {

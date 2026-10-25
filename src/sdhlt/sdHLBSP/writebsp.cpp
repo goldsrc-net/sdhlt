@@ -49,7 +49,7 @@ static int WritePlane(int planenum)
 		return item->second;
 	}
 	//add plane to BSP
-	hlassume(gNumMappedPlanes < MAX_MAP_PLANES, assume_MAX_MAP_PLANES);
+	hlassume(gNumMappedPlanes < g_engine->planes, assume_MAX_MAP_PLANES);
 	gMappedPlanes[gNumMappedPlanes] = g_dplanes[planenum];
 	gPlaneMap.insert(PlaneMap::value_type(planenum,gNumMappedPlanes));
 
@@ -304,7 +304,14 @@ static void     WriteFace(face_t* f)
     hlassume(g_numfaces < MAX_MAP_FACES, assume_MAX_MAP_FACES);
     g_numfaces++;
 
-	df->planenum = WritePlane(f->planenum);
+	{
+		int planenum = WritePlane(f->planenum);
+		if (planenum >= g_engine->faceplanes)
+		{
+			Error("A face names plane %d, and %s reads a face's plane only up to %d.", planenum, g_engine->name, g_engine->faceplanes - 1);
+		}
+		df->planenum = planenum;
+	}
 	df->side = f->planenum & 1;
     df->firstedge = g_numsurfedges;
     df->numedges = f->numpoints;
@@ -588,13 +595,13 @@ void            FinishBSPFile()
 {
     Verbose("--- FinishBSPFile ---\n");
 
-	if (g_dmodels[0].visleafs > MAX_MAP_LEAFS_ENGINE)
+	if (g_dmodels[0].visleafs > g_engine->worldleaves)
 	{
-		Warning ("Number of world leaves(%d) exceeded MAX_MAP_LEAFS(%d)\nIf you encounter problems when running your map, consider this the most likely cause.\n", g_dmodels[0].visleafs, MAX_MAP_LEAFS_ENGINE);
+		Warning ("Number of world leaves(%d) exceeded MAX_MAP_LEAFS(%d)\nIf you encounter problems when running your map, consider this the most likely cause.\n", g_dmodels[0].visleafs, g_engine->worldleaves);
 	}
-	if (g_dmodels[0].numfaces > MAX_MAP_WORLDFACES)
+	if (g_dmodels[0].numfaces > g_engine->worldfaces)
 	{
-		Warning ("Number of world faces(%d) exceeded %d. Some faces will disappear in game.\nTo reduce world faces, change some world brushes (including func_details) to func_walls.\n", g_dmodels[0].numfaces, MAX_MAP_WORLDFACES);
+		Warning ("Number of world faces(%d) exceeded %d. Some faces will disappear in game.\nTo reduce world faces, change some world brushes (including func_details) to func_walls.\n", g_dmodels[0].numfaces, g_engine->worldfaces);
 	}
 	Developer (DEVELOPER_LEVEL_MESSAGE, "count_mergedclipnodes = %d\n", count_mergedclipnodes);
 	if (!g_noclipnodemerge)
@@ -746,7 +753,7 @@ void            FinishBSPFile()
 	else
 	{
 		hlassume (g_numtexinfo < MAX_MAP_TEXINFO, assume_MAX_MAP_TEXINFO);
-		hlassume (g_numplanes < MAX_MAP_PLANES, assume_MAX_MAP_PLANES);
+		hlassume (g_numplanes < g_engine->planes, assume_MAX_MAP_PLANES);
 	}
 
 	if (!g_nobrink)

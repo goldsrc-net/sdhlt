@@ -50,6 +50,9 @@ The default shadow mode `1` will trace each triangle normally and supports trans
 
 ### Compile parameters
 
+#### All tools
+- `-xash` holds the map to Xash3D FWGS's limits instead of GoldSrc's: 2048 brush models, 131072 planes (65536 for faces), 65535 world faces, 256 lightmap pages, 16 MB of visibility, and up to 8192 entities (Xash's `max_edicts`, 1200 unless the mod's gameinfo says otherwise). Over 32767 clipnodes the map is written as Xash's bsp30ext (32-bit clipnodes), which stock GoldSrc will not load, and each hull of each model must still walk no more than 32767 clipnodes, as Xash counts them when it loads the map. Give it to every tool: VIS and RAD refuse a bsp30ext map without it. Without `-xash` a map over 32767 clipnodes is an error, as in stock.
+
 #### CSG
 - `-worldextent #` extends the world geometry limit, increase this if you get "brush outside world" errors. Default value of `65536` allows geometry in the range of `+/-32768`. Entities are limited to `+/-8192` by the engine.
 

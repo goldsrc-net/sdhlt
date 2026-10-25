@@ -795,6 +795,7 @@ static void     Usage(const char* paramWarning = 0)
 	Log("    -deleteembeddedlightmaps : Delete textures created by hlrad\n");
 
     Log("    -texdata #      : Alter maximum texture memory limit (in kb)\n");
+    Log("    -xash           : Hold the map to Xash3D FWGS's limits, not GoldSrc's\n");
     Log("    -lightdata #    : Alter maximum lighting memory limit (in kb)\n");
 	Log("    -chart          : Display bsp statitics\n");
 	Log("    -noinfo         : Do not show tool configuration information\n\n");
@@ -841,6 +842,7 @@ static void     Settings()
     // ZHLT Common Settings
     Log("chart               [ %7s ] [ %7s ]\n", g_chart ? "on" : "off", DEFAULT_CHART ? "on" : "off");
     Log("max texture memory  [ %7d ] [ %7d ]\n", g_max_map_miptex, DEFAULT_MAX_MAP_MIPTEX);
+    Log("engine              [ %7s ] [ %7s ]\n", g_engine->name, "GoldSrc");
 	Log("max lighting memory [ %7d ] [ %7d ]\n", g_max_map_lightdata, DEFAULT_MAX_MAP_LIGHTDATA);
 
 	switch (g_mode)
@@ -938,6 +940,10 @@ int             main(int argc, char** argv)
 		{
 			g_parse = true;
 		}
+        else if (!strcasecmp(argv[i], "-xash"))
+        {
+            SetEngineXash();
+        }
         else if (!strcasecmp(argv[i], "-texdata"))
         {
             if (i + 1 < argc)	//added "1" .--vluzacn

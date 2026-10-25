@@ -2838,6 +2838,7 @@ static void     Usage(const char* paramWarning = 0, bool mapfileWarning = false)
     Log("    -incremental    : Use or create an incremental transfer list file\n\n");
     Log("    -dump           : Dumps light patches to a file for hlrad debugging info\n\n");
     Log("    -texdata #      : Alter maximum texture memory limit (in kb)\n");
+    Log("    -xash           : Hold the map to Xash3D FWGS's limits, not GoldSrc's\n");
     Log("    -lightdata #    : Alter maximum lighting memory limit (in kb)\n"); //lightdata
     Log("    -chart          : display bsp statitics\n");
     Log("    -low | -high    : run program an altered priority level\n");
@@ -2940,6 +2941,7 @@ static void     Settings()
     Log("chart                [ %17s ] [ %17s ]\n", g_chart ? "on" : "off", DEFAULT_CHART ? "on" : "off");
     Log("estimate             [ %17s ] [ %17s ]\n", g_estimate ? "on" : "off", DEFAULT_ESTIMATE ? "on" : "off");
     Log("max texture memory   [ %17d ] [ %17d ]\n", g_max_map_miptex, DEFAULT_MAX_MAP_MIPTEX);
+    Log("engine               [ %17s ] [ %17s ]\n", g_engine->name, "GoldSrc");
 	Log("max lighting memory  [ %17d ] [ %17d ]\n", g_max_map_lightdata, DEFAULT_MAX_MAP_LIGHTDATA); //lightdata
 
     switch (g_threadpriority)
@@ -3704,6 +3706,10 @@ int             main(const int argc, char** argv)
             {
                 Usage();
             }
+        }
+        else if (!strcasecmp(argv[i], "-xash"))
+        {
+            SetEngineXash();
         }
         else if (!strcasecmp(argv[i], "-texdata"))
         {
