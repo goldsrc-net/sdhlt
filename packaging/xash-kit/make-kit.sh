@@ -16,7 +16,7 @@ trap 'rm -rf "${WORK:?}"' EXIT
 unzip -q "$RELEASE" -d "$WORK"
 mkdir -p "$WORK/$NAME"
 python3 "$HERE/patch-delta.py" "$MOD/delta.lst" "$WORK/$NAME/delta.lst"
-cp "$MOD/liblist.gam" "$WORK/$NAME/liblist.gam"
+cat "$MOD/liblist.gam" > "$WORK/$NAME/liblist.gam"     # not cp: a game's copy may be read-only
 if ! grep -qi '^[[:space:]]*edicts[[:space:]]' "$WORK/$NAME/liblist.gam"; then
   # the file's own line ending, so that it stays CRLF when it was
   if grep -q $'\r' "$WORK/$NAME/liblist.gam"; then printf 'edicts "4096"\r\n'; else printf 'edicts "4096"\n'; fi >> "$WORK/$NAME/liblist.gam"
