@@ -108,6 +108,7 @@ jobs:
           cp media/banner.png "dist/sdhlt-${GITHUB_REF_NAME}/media/"
           cp tools/wad.cfg tools/settings.txt tools/sdhlt.fgd tools/sdhlt.wad tools/lights.rad "dist/sdhlt-${GITHUB_REF_NAME}/tools/"
           cp stage/linux/*  "dist/sdhlt-${GITHUB_REF_NAME}/tools/Linux/"
+          chmod +x "dist/sdhlt-${GITHUB_REF_NAME}/tools/Linux/"*   # upload-artifact drops the executable bit
           cp stage/win32/*  "dist/sdhlt-${GITHUB_REF_NAME}/tools/Win32/"
           cp stage/win64/*  "dist/sdhlt-${GITHUB_REF_NAME}/tools/Win64"
           cd dist
