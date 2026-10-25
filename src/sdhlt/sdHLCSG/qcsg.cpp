@@ -1528,7 +1528,8 @@ static void     Usage(const char* paramWarning = 0, bool mapfileWarning = false)
 	Log("    -wadcfgfile file : wad configuration file\n");
 	Log("    -wadconfig name  : use the old wad configuration approach (select a group from wad.cfg)\n");
     Log("    -texdata #       : Alter maximum texture memory limit (in kb)\n");
-    Log("    -xash            : Hold the map to Xash3D FWGS's limits, not GoldSrc's\n");
+    Log("    -engine #        : goldsrc (GoldSrc's limits) or xash (Xash3D FWGS's); -xash is -engine xash\n");
+    Log("    -format #        : bsp30, bsp30ext or bsp2, where the smallest that fits is not wanted\n");
     Log("    -lightdata #     : Alter maximum lighting memory limit (in kb)\n");
     Log("    -chart           : display bsp statitics\n");
     Log("    -low | -high     : run program an altered priority level\n");
@@ -1619,6 +1620,7 @@ static void     Settings()
     Log("estimate              [ %7s ] [ %7s ]\n", g_estimate ? "on" : "off", DEFAULT_ESTIMATE ? "on" : "off");
     Log("max texture memory    [ %7d ] [ %7d ]\n", g_max_map_miptex, DEFAULT_MAX_MAP_MIPTEX);
     Log("engine                [ %7s ] [ %7s ]\n", g_engine->name, "GoldSrc");
+    Log("format                [ %7s ] [ %7s ]\n", FormatName(g_format), "auto");
 	Log("max lighting memory   [ %7d ] [ %7d ]\n", g_max_map_lightdata, DEFAULT_MAX_MAP_LIGHTDATA);
 
     switch (g_threadpriority)
@@ -1905,9 +1907,8 @@ int             main(const int argc, char** argv)
                 Usage();
             }
         }
-        else if (!strcasecmp(argv[i], "-xash"))
+        else if (EngineOption(argc, argv, i))
         {
-            SetEngineXash();
         }
         else if (!strcasecmp(argv[i], "-texdata"))
         {

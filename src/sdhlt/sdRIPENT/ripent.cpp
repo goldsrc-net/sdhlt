@@ -795,7 +795,8 @@ static void     Usage(const char* paramWarning = 0)
 	Log("    -deleteembeddedlightmaps : Delete textures created by hlrad\n");
 
     Log("    -texdata #      : Alter maximum texture memory limit (in kb)\n");
-    Log("    -xash           : Hold the map to Xash3D FWGS's limits, not GoldSrc's\n");
+    Log("    -engine #       : goldsrc (GoldSrc's limits) or xash (Xash3D FWGS's); -xash is -engine xash\n");
+    Log("    -format #       : bsp30, bsp30ext or bsp2, where the smallest that fits is not wanted\n");
     Log("    -lightdata #    : Alter maximum lighting memory limit (in kb)\n");
 	Log("    -chart          : Display bsp statitics\n");
 	Log("    -noinfo         : Do not show tool configuration information\n\n");
@@ -843,6 +844,7 @@ static void     Settings()
     Log("chart               [ %7s ] [ %7s ]\n", g_chart ? "on" : "off", DEFAULT_CHART ? "on" : "off");
     Log("max texture memory  [ %7d ] [ %7d ]\n", g_max_map_miptex, DEFAULT_MAX_MAP_MIPTEX);
     Log("engine              [ %7s ] [ %7s ]\n", g_engine->name, "GoldSrc");
+    Log("format              [ %7s ] [ %7s ]\n", FormatName(g_format), "auto");
 	Log("max lighting memory [ %7d ] [ %7d ]\n", g_max_map_lightdata, DEFAULT_MAX_MAP_LIGHTDATA);
 
 	switch (g_mode)
@@ -940,9 +942,8 @@ int             main(int argc, char** argv)
 		{
 			g_parse = true;
 		}
-        else if (!strcasecmp(argv[i], "-xash"))
+        else if (EngineOption(argc, argv, i))
         {
-            SetEngineXash();
         }
         else if (!strcasecmp(argv[i], "-texdata"))
         {

@@ -531,7 +531,14 @@ typedef struct
 }
 enginelimits_t;
 extern const enginelimits_t* g_engine;
-extern void     SetEngineXash();
+// The file's layout: the smallest that fits (FORMAT_AUTO), or the one -format names, refused when the engine cannot
+// load it or the map does not fit it
+typedef enum { FORMAT_AUTO, FORMAT_BSP30, FORMAT_BSP30EXT, FORMAT_BSP2 } bspformat_t;
+extern bspformat_t g_format;
+extern const char* FormatName(bspformat_t format);
+// -engine goldsrc|xash, -xash (the same as -engine xash) and -format bsp30|bsp30ext|bsp2: true when argv[i] was one,
+// i moved past its value; a value it does not know stops the tool
+extern bool     EngineOption(int argc, char** argv, int& i);
 extern void     dtexdata_init();
 extern void CDECL dtexdata_free();
 

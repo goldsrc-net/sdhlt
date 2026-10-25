@@ -27,9 +27,42 @@ static const enginelimits_t s_xash =
 };
 const enginelimits_t* g_engine = &s_goldsrc;
 
-void            SetEngineXash()
+bspformat_t     g_format = FORMAT_AUTO;
+
+const char*     FormatName(bspformat_t format)
 {
-    g_engine = &s_xash;
+    static const char* names[] = { "auto", "bsp30", "bsp30ext", "bsp2" };
+    return names[format];
+}
+
+bool            EngineOption(int argc, char** argv, int& i)
+{
+    if (!strcasecmp(argv[i], "-xash"))
+    {
+        g_engine = &s_xash;
+        return true;
+    }
+    if (strcasecmp(argv[i], "-engine") && strcasecmp(argv[i], "-format"))
+    {
+        return false;
+    }
+    if (i + 1 >= argc)
+    {
+        Error("%s needs a value: -engine goldsrc|xash, -format bsp30|bsp30ext|bsp2", argv[i]);
+    }
+    const char* value = argv[++i];
+    if (!strcasecmp(argv[i - 1], "-engine"))
+    {
+        if (!strcasecmp(value, "goldsrc")) g_engine = &s_goldsrc;
+        else if (!strcasecmp(value, "xash")) g_engine = &s_xash;
+        else Error("-engine is goldsrc or xash, not %s", value);
+        return true;
+    }
+    if (!strcasecmp(value, "bsp30")) g_format = FORMAT_BSP30;
+    else if (!strcasecmp(value, "bsp30ext")) g_format = FORMAT_BSP30EXT;
+    else if (!strcasecmp(value, "bsp2")) g_format = FORMAT_BSP2;
+    else Error("-format is bsp30, bsp30ext or bsp2, not %s", value);
+    return true;
 }
 
 int             g_nummodels;
@@ -881,33 +914,63 @@ void            WriteBSPFile(const char* const filename)
     header = &outheader;
     memset(header, 0, sizeof(dheader_t));
 
-    // past a v30 file's 16-bit numbers anywhere but the clipnodes: Xash's BSP2, every number 32-bit
+    // The layout: the smallest that fits (bsp30, then bsp30ext past 32767 clipnodes, then BSP2 past any other 16-bit
+    // number of a v30 file), or the one -format names. Xash reads all three; GoldSrc only bsp30.
     char over[256] = "";
     V30Overflows(over, sizeof(over));
-    g_bsp2 = (over[0] != '\0');
-    if (g_bsp2)
+    bool clipover = g_numclipnodes > MAX_MAP_CLIPNODES_HLBSP;
+    bool xash = g_engine->vertexes > MAX_MAP_VERTS_V30;
+    switch (g_format)
     {
-        if (g_engine->vertexes <= MAX_MAP_VERTS_V30)
+    case FORMAT_BSP30:
+        if (over[0] || clipover)
         {
-            Error("%s past what a version 30 map can number, and %s holds no more. Fewer, or -xash in every tool for Xash's BSP2, which stock GoldSrc will not load.",
+            Error("-format bsp30, and the map does not fit one: %s%s%d clipnodes (v30: %d).",
+                over, over[0] ? ", " : "", g_numclipnodes, MAX_MAP_CLIPNODES_HLBSP);
+        }
+        g_bsp2 = g_bsp30ext = false;
+        break;
+    case FORMAT_BSP30EXT:
+        if (over[0])
+        {
+            Error("-format bsp30ext, and %s past what it can number: only its clipnodes are 32-bit. -format bsp2, or leave -format out.", over);
+        }
+        g_bsp2 = false;
+        g_bsp30ext = true;
+        break;
+    case FORMAT_BSP2:
+        g_bsp2 = true;
+        g_bsp30ext = false;
+        break;
+    default:
+        g_bsp2 = (over[0] != '\0');
+        g_bsp30ext = !g_bsp2 && clipover;
+        break;
+    }
+    if ((g_bsp2 || g_bsp30ext) && !xash)
+    {
+        if (g_format != FORMAT_AUTO)
+        {
+            Error("-format %s is Xash's, and the engine is %s: -engine xash in every tool.", FormatName(g_format), g_engine->name);
+        }
+        if (g_bsp2)
+        {
+            Error("%s past what a version 30 map can number, and %s holds no more. Fewer, or -engine xash in every tool for Xash's BSP2, which stock GoldSrc will not load.",
                 over, g_engine->name);
         }
-        Log("%s past what a version 30 map can number: writing Xash BSP2 (32-bit numbers; stock GoldSrc will not load it)\n", over);
+        Error("%d clipnodes, and %s holds %d. Fewer, or -engine xash in every tool for Xash's bsp30ext, which stock GoldSrc will not load.",
+            g_numclipnodes, g_engine->name, MAX_MAP_CLIPNODES_HLBSP);
     }
-
-    // over the v30 ceiling in the clipnodes alone: Xash bsp30ext — the extra header right after the standard one,
-    // clipnodes as 32-bit
-    g_bsp30ext = !g_bsp2 && (g_numclipnodes > MAX_MAP_CLIPNODES_HLBSP);
+    if (g_bsp2)
+    {
+        Log("%s: writing Xash BSP2 (32-bit numbers; stock GoldSrc will not load it)\n",
+            over[0] ? over : "-format bsp2");
+    }
     if (g_bsp30ext)
     {
-        if (g_engine->clipnodes <= MAX_MAP_CLIPNODES_HLBSP)
-        {
-            Error("%d clipnodes, and %s holds %d. Fewer, or -xash in every tool for Xash's bsp30ext, which stock GoldSrc will not load.",
-                g_numclipnodes, g_engine->name, MAX_MAP_CLIPNODES_HLBSP);
-        }
-        CheckHullClipnodes();
-        Log("%d clipnodes exceed the v30 limit of %d: writing Xash bsp30ext (32-bit clipnodes; stock GoldSrc will not load it)\n",
-            g_numclipnodes, MAX_MAP_CLIPNODES_HLBSP);
+        CheckHullClipnodes();                              // Xash walks every hull of a bsp30ext map, wide or not
+        Log("%d clipnodes%s: writing Xash bsp30ext (stock GoldSrc will not load it)\n", g_numclipnodes,
+            clipover ? ", past the v30 limit of 32767" : ", -format bsp30ext");
     }
 
     SwapBSPFile(true);
@@ -932,7 +995,7 @@ void            WriteBSPFile(const char* const filename)
     AddNodes(header, bspfile);
     AddLump(LUMP_TEXINFO,   g_texinfo,      g_numtexinfo * sizeof(texinfo_t),   header, bspfile);
     AddFaces(header, bspfile);
-    if (g_bsp2 || g_bsp30ext)
+    if (g_bsp2 || (g_bsp30ext && g_numclipnodes > MAX_MAP_CLIPNODES_HLBSP))
     {
         AddLump(LUMP_CLIPNODES, g_dclipnodes, g_numclipnodes * sizeof(dclipnode32_t), header, bspfile);
     }
